@@ -13,7 +13,7 @@ from hrms.hr.utils import (
 	set_geolocation_from_coordinates,
 	validate_active_employee,
 )
-from maika.utils.hrms_utils import (
+from hrms.utils.mk_hrms_utils import (
 	get_assigned_shifts_for_date,
 	get_assigned_shift_details,
 	get_shift_type,
