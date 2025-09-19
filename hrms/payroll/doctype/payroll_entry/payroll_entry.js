@@ -99,6 +99,13 @@ frappe.ui.form.on("Payroll Entry", {
 				frm.scroll_to_field("error_message");
 			});
 		}
+
+		frm.add_custom_button('Fetch NL Attendance', () => {
+			if (frm.doc.salary_slips_created && frm.doc.status !== "Queued") {
+				fetch_attendance_data(frm);
+				// frappe.msgprint("About to fetch NL Attendance...")
+    		}
+		})
 	},
 
 	get_employee_details: function (frm) {
@@ -444,3 +451,14 @@ let render_employee_attendance = function (frm, data) {
 		}),
 	);
 };
+
+function fetch_attendance_data(frm) {
+	// frappe.msgprint("Calling fetch NL Attendance...")
+  	frappe.call({
+    	method:
+      		"maika.controllers.prepare_to_run_payroll.add_data_for_payroll",
+    	args: {
+      		payroll_entry: frm.doc.name,
+    	},
+  	});
+}

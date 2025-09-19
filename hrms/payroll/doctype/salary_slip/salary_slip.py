@@ -62,6 +62,8 @@ LEAVE_TYPE_MAP = "leave_type_map"
 SALARY_COMPONENT_VALUES = "salary_component_values"
 TAX_COMPONENTS_BY_COMPANY = "tax_components_by_company"
 
+frappe.utils.logger.set_log_level("INFO")
+logger = frappe.logger("mk_logger")
 
 class SalarySlip(TransactionBase):
 	def __init__(self, *args, **kwargs):
@@ -1211,6 +1213,7 @@ class SalarySlip(TransactionBase):
 					default_amount=default_amount,
 					remove_if_zero_valued=remove_if_zero_valued,
 				)
+		logger.info(f"component_type: {component_type} struct_row.abbr: {struct_row.abbr} amount: {amount}")
 
 	def get_data_for_eval(self):
 		"""Returns data for evaluating formula"""
@@ -1248,6 +1251,8 @@ class SalarySlip(TransactionBase):
 	def eval_condition_and_formula(self, struct_row, data):
 		try:
 			condition, formula, amount = struct_row.condition, struct_row.formula, struct_row.amount
+			logger.info(f"condition: {condition} formula: {formula} amount:{amount}")
+			# print(f"data: {data}")
 			if condition and not _safe_eval(condition, self.whitelisted_globals, data):
 				return None
 			if struct_row.amount_based_on_formula and formula:
@@ -2376,6 +2381,7 @@ def _safe_eval(code: str, eval_globals: dict | None = None, eval_locals: dict | 
 
 
 def _check_attributes(code: str) -> None:
+	print(f"code: {code}")
 	import ast
 
 	from frappe.utils.safe_exec import UNSAFE_ATTRIBUTES

@@ -13,7 +13,15 @@ from hrms.hr.utils import (
 	set_geolocation_from_coordinates,
 	validate_active_employee,
 )
+from maika.utils.hrms_utils import (
+	get_assigned_shifts_for_date,
+	get_assigned_shift_details,
+	get_shift_type,
+	get_shift_timings
+)
 
+frappe.utils.logger.set_log_level("INFO")
+logger = frappe.logger("mk_logger")
 
 class CheckinRadiusExceededError(frappe.ValidationError):
 	pass
@@ -67,8 +75,22 @@ class EmployeeCheckin(Document):
 				self.employee, get_datetime(self.time), True
 			)
 		):
-			self.shift = None
-			self.offshift = 1
+			# self.shift = None
+			# self.offshift = 1
+			# return
+			# print("hit employee_checkin.offshift = 1")
+			assigned_shift = get_assigned_shifts_for_date(self.employee,self.time)
+			logger.info(f"assigned shift: {assigned_shift}")
+			assigned_shift_detail = get_assigned_shift_details(assigned_shift[0].shift_type,self.time)
+			logger.info(f"assigned_shift_detail: {assigned_shift_detail}")
+
+			self.offshift = 0
+			self.shift = assigned_shift[0].shift_type
+			self.shift_actual_start = assigned_shift_detail.actual_start
+			self.shift_actual_end = assigned_shift_detail.actual_end
+			self.shift_start = assigned_shift_detail.start_datetime
+			self.shift_end = assigned_shift_detail.end_datetime
+			# print(self)
 			return
 
 		if (
