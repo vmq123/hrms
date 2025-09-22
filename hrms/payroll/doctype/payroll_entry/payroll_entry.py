@@ -30,7 +30,7 @@ from erpnext.accounts.utils import get_fiscal_year
 
 from hrms.payroll.doctype.salary_slip.salary_slip_loan_utils import if_lending_app_installed
 from hrms.payroll.doctype.salary_withholding.salary_withholding import link_bank_entry_in_salary_withholdings
-
+from maika.controllers.prepare_to_run_payroll import add_data_for_payroll
 
 class PayrollEntry(Document):
 	def onload(self):
@@ -1452,6 +1452,10 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 		count = 0
 
 		employees = list(set(employees) - set(salary_slips_exist_for))
+
+		# this is MK payroll hook
+		add_data_for_payroll(payroll_entry, employees)
+		
 		for emp in employees:
 			args.update({"doctype": "Salary Slip", "employee": emp})
 			frappe.get_doc(args).insert()
