@@ -202,6 +202,7 @@ doc_events = {
 			"hrms.overrides.employee_master.update_approver_role",
 			"hrms.overrides.employee_master.publish_update",
 		],
+        "before_insert": "hrms.overrides.employee_master.before_insert_hook",
 		"after_insert": "hrms.overrides.employee_master.after_insert_hook",
 		"on_trash": "hrms.overrides.employee_master.update_employee_transfer",
 		"after_delete": "hrms.overrides.employee_master.publish_update",

@@ -40,6 +40,9 @@ class EmployeeCheckin(Document):
 		self.validate_distance_from_shift_location()
 
 	def validate_duplicate_log(self):
+
+		# because already validated in MK Employee Checkin...
+		return
 		doc = frappe.db.exists(
 			"Employee Checkin",
 			{
@@ -113,6 +116,9 @@ class EmployeeCheckin(Document):
 			self.shift_end = shift_actual_timings.end_datetime
 
 	def validate_distance_from_shift_location(self):
+		# becase already validate in MK Employee Checking, then here will do nothing
+		return
+	
 		if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
 			return
 

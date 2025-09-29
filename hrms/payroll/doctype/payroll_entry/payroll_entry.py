@@ -30,7 +30,16 @@ from erpnext.accounts.utils import get_fiscal_year
 
 from hrms.payroll.doctype.salary_slip.salary_slip_loan_utils import if_lending_app_installed
 from hrms.payroll.doctype.salary_withholding.salary_withholding import link_bank_entry_in_salary_withholdings
-from maika.controllers.prepare_to_run_payroll import add_data_for_payroll
+
+from nl_attendance_timesheet.controllers.get_employee_attendance import get_employee_attendance, get_employee_overtime_attendance
+from nl_attendance_timesheet.controllers.generate_overtime_timesheets import generate_overtime_timesheets
+
+from maika.controllers.prepare_to_run_payroll import prepare_payroll_data
+from maika.maika.doctype.mk_employee_checkin.mk_employee_checkin import validate_days_having_only_one_checkin
+from pypika import Criterion
+
+frappe.utils.logger.set_log_level("INFO")
+logger = frappe.logger("mk_logger")
 
 class PayrollEntry(Document):
 	def onload(self):
@@ -45,6 +54,8 @@ class PayrollEntry(Document):
 	def validate(self):
 		self.number_of_employees = len(self.employees)
 		self.set_status()
+		# this is mk payroll logic
+		validate_days_having_only_one_checkin(self.start_date, self.end_date)
 
 	def set_status(self, status=None, update=False):
 		if not status:
@@ -56,6 +67,7 @@ class PayrollEntry(Document):
 			self.status = status
 
 	def before_submit(self):
+
 		self.validate_existing_salary_slips()
 		self.validate_payroll_payable_account()
 		if self.get_employees_with_unmarked_attendance():
@@ -238,14 +250,14 @@ class PayrollEntry(Document):
 					"currency": self.currency,
 				}
 			)
-			if len(employees) > 30 or frappe.flags.enqueue_payroll_entry:
+			if len(employees) > 1 or frappe.flags.enqueue_payroll_entry:
 				self.db_set("status", "Queued")
 				frappe.enqueue(
 					create_salary_slips_for_employees,
 					timeout=3000,
 					employees=employees,
 					args=args,
-					publish_progress=False,
+					publish_progress=True,
 				)
 				frappe.msgprint(
 					_("Salary Slip creation is queued. It may take a few minutes"),
@@ -253,7 +265,7 @@ class PayrollEntry(Document):
 					indicator="blue",
 				)
 			else:
-				create_salary_slips_for_employees(employees, args, publish_progress=False)
+				create_salary_slips_for_employees(employees, args, publish_progress=True)
 				# since this method is called via frm.call this doc needs to be updated manually
 				self.reload()
 
@@ -1445,20 +1457,38 @@ def log_payroll_failure(process, payroll_entry, error):
 
 
 def create_salary_slips_for_employees(employees, args, publish_progress=True):
-	payroll_entry = frappe.get_cached_doc("Payroll Entry", args.payroll_entry)
 
 	try:
+		if publish_progress:
+				frappe.publish_progress(
+					1 / len(employees),
+					title=_("Preparing payroll data..."),
+				)
+		prepare_payroll_data(args.start_date,args.end_date,track_job = None)
+
+		SETTINGS_DOCTYPE = 'Navari Custom Payroll Settings'
+		maximum_monthly_hours = frappe.db.get_single_value(SETTINGS_DOCTYPE, 'maximum_monthly_hours')
+		overtime_15 = frappe.db.get_single_value(SETTINGS_DOCTYPE, 'overtime_15_activity')
+		overtime_20 = frappe.db.get_single_value(SETTINGS_DOCTYPE, 'overtime_20_activity')
+
+		payroll_entry = frappe.get_cached_doc("Payroll Entry", args.payroll_entry)
+
 		salary_slips_exist_for = get_existing_salary_slips(employees, args)
 		count = 0
 
 		employees = list(set(employees) - set(salary_slips_exist_for))
 
 		# this is MK payroll hook
-		add_data_for_payroll(payroll_entry, employees)
+		# add_data_for_payroll(payroll_entry, employees)
 		
 		for emp in employees:
 			args.update({"doctype": "Salary Slip", "employee": emp})
-			frappe.get_doc(args).insert()
+			doc = frappe.get_doc(args)
+			doc.validate()
+			# logger.info(f"payment days 1: {doc.payment_days}")
+			add_attendance_data_to_salary_slip(doc,overtime_15,overtime_20)
+			add_incentive_data_to_salary_slip(doc)
+			doc.insert()
 
 			count += 1
 			if publish_progress:
@@ -1680,3 +1710,122 @@ def get_salary_withholdings(
 	if pluck:
 		return withheld_salaries.run(pluck=pluck)
 	return withheld_salaries.run(as_dict=True)
+
+# this is MK Payroll added
+# TODO: get real duration from shift_type instead of 8
+def add_attendance_data_to_salary_slip(salary_slip,overtime_15,overtime_20):
+	# salary_slip = salary_slip_doc
+	maximum_monthly_hours = salary_slip.payment_days * 8
+	logger.info(f"maximum_monthly_hours: {maximum_monthly_hours}")
+	salary_slip.attendance = []
+	salary_slip.regular_overtime = []
+	salary_slip.holiday_overtime = []
+
+	salary_slip.regular_working_hours = 0
+	salary_slip.overtime_hours = 0
+	salary_slip.holiday_hours = 0
+
+	attendance = get_employee_attendance(salary_slip.get('employee'), salary_slip.get('start_date'), salary_slip.get('end_date'))
+	# print(f"attendance: {attendance}")
+	overtime_attendance = get_employee_overtime_attendance(salary_slip.get('employee'), salary_slip.get('start_date'), salary_slip.get('end_date'))
+	# print(f"overtime_attendance: {overtime_attendance}")
+	# holiday_dates = get_holiday_dates(salary_slip.get('employee'))
+	holiday_dates = salary_slip.get_holidays_for_employee(salary_slip.start_date,salary_slip.end_date)
+	# print(f"holiday_dates: {holiday_dates}")
+
+
+	if attendance:
+		for attendance_entry in attendance:
+			logger.info(f"attendance_entry: {attendance_entry}")
+			if attendance_entry.get('attendance_date') not in (holiday_dates or []) and attendance_entry.get('working_hours') > 0:
+				billiable_hours = 0
+
+				if not attendance_entry.get('include_unpaid_breaks'):
+					billiable_hours = attendance_entry.get('payment_hours')
+				else:
+					if attendance_entry.get('working_hours') > attendance_entry.get('min_hours_to_include_a_break'):
+						billiable_hours = attendance_entry.get('working_hours') - (attendance_entry.get('unpaid_breaks_minutes') / 60)
+					else:
+						billiable_hours = attendance_entry.get('working_hours')
+
+				salary_slip.append('attendance', {
+					'attendance_date': attendance_entry.get('attendance_date'),
+					'hours_worked': attendance_entry.get('working_hours'),
+					'include_unpaid_breaks': attendance_entry.get('include_unpaid_breaks'),
+					'unpaid_breaks_minutes': attendance_entry.get('unpaid_breaks_minutes'),
+					'min_hours_to_include_a_break': attendance_entry.get('min_hours_to_include_a_break'),
+					'billiable_hours': billiable_hours
+				})
+
+				salary_slip.regular_working_hours += billiable_hours
+
+
+	if overtime_attendance:
+		for overtime_attendance_record in overtime_attendance:
+			logger.info(f"overtime_attendance_record: {overtime_attendance_record}")
+			if overtime_attendance_record.get('activity_type') == overtime_15:
+				salary_slip.append('regular_overtime', {
+					'timesheet': overtime_attendance_record.get('name'),
+					'hours': overtime_attendance_record.get('total_hours')
+				})
+				salary_slip.overtime_hours += overtime_attendance_record.get('total_hours')
+
+			if overtime_attendance_record.get('activity_type') == overtime_20:
+				salary_slip.append('holiday_overtime', {
+					'timesheet': overtime_attendance_record.get('name'),
+					'hours': overtime_attendance_record.get('total_hours')
+				})
+				salary_slip.holiday_hours += overtime_attendance_record.get('total_hours')
+
+	if salary_slip.regular_working_hours > maximum_monthly_hours:
+		# salary_slip.overtime_hours += salary_slip.regular_working_hours - maximum_monthly_hours
+		salary_slip.regular_working_hours = maximum_monthly_hours
+	elif salary_slip.regular_working_hours < maximum_monthly_hours:
+		balance_to_maximum_monthly_hours = maximum_monthly_hours - salary_slip.regular_working_hours
+		if salary_slip.overtime_hours <= balance_to_maximum_monthly_hours:
+			salary_slip.regular_working_hours += salary_slip.overtime_hours
+			salary_slip.overtime_hours = 0
+		else:
+			salary_slip.overtime_hours -= balance_to_maximum_monthly_hours
+			salary_slip.regular_working_hours += balance_to_maximum_monthly_hours
+
+def add_incentive_data_to_salary_slip(salary_slip):
+	start_date, end_date=salary_slip.start_date, salary_slip.end_date
+
+	sales_team = frappe.qb.DocType("Sales Team")
+	sales_order = frappe.qb.DocType("Sales Order")
+	sales_person = frappe.qb.DocType("Sales Person")
+	# salary_slip_qb = frappe.qb.DocType("Salary Slip")
+
+	conditions = [sales_order.docstatus == 1, sales_order.transaction_date[start_date:end_date],
+				# salary_slip_qb.incentive_based_salary == 1, salary_slip_qb.name == salary_slip.name,
+				sales_person.employee ==  salary_slip.employee,
+				sales_team.parenttype == "Sales Order"]
+
+	query = frappe.qb.from_(sales_team) \
+		.left_join(sales_order) \
+		.on(sales_team.parent == sales_order.name) \
+		.left_join(sales_person) \
+		.on(sales_team.sales_person == sales_person.sales_person_name) \
+		.select(
+		sales_team.parent.as_("parent"),
+		sales_team.allocated_percentage.as_("allocated_percentage"),
+		sales_team.allocated_amount.as_("allocated_amount"),
+		sales_team.commission_rate.as_("commission_rate"),
+		sales_team.incentives.as_("incentives")
+	).where(Criterion.all(conditions))
+
+	incentive_records = query.run(as_dict=True)
+	incentives_total = 0
+
+	for entry in incentive_records:
+		logger.info(f"entry: {entry}")
+		salary_slip.append('incentive', {
+			'sales_order': entry.get('parent'),
+			'allocated_percentage': entry.get('allocated_percentage'),
+			'allocated_amount': entry.get('allocated_amount'),
+			'commission_rate': entry.get('commission_rate'),
+			'incentives': entry.get('incentives')
+		})
+		incentives_total += entry.incentives
+	salary_slip.incentives_total = incentives_total

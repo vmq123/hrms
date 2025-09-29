@@ -52,10 +52,12 @@ def publish_update(doc, method=None):
 
 	hrms.refetch_resource("hrms:employee", doc.user_id)
 
+def before_insert_hook(doc, method=None):
+	doc.user_id = None
 
 def after_insert_hook(doc, method=None):
 	update_job_applicant_and_offer(doc, method)
-	create_user(doc,user=None, email = doc.personal_email)
+	create_user(doc.name,user=None, email = doc.personal_email)
 
 def create_user(employee, user=None, email=None):
 	emp = frappe.get_doc("Employee", employee)
@@ -90,7 +92,7 @@ def create_user(employee, user=None, email=None):
 			"birth_date": emp.date_of_birth,
 			"phone": emp.cell_number,
 			"bio": emp.bio,
-			"role_profile_name": "MK HR",
+			"role_profile_name": "MK Employee",
 			"module_profile": "MK"
 		}
 	)
