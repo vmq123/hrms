@@ -31,11 +31,9 @@ from erpnext.accounts.utils import get_fiscal_year
 from hrms.payroll.doctype.salary_slip.salary_slip_loan_utils import if_lending_app_installed
 from hrms.payroll.doctype.salary_withholding.salary_withholding import link_bank_entry_in_salary_withholdings
 
-from nl_attendance_timesheet.controllers.get_employee_attendance import get_employee_attendance, get_employee_overtime_attendance
-from nl_attendance_timesheet.controllers.generate_overtime_timesheets import generate_overtime_timesheets
+from hrms.controllers.nl_get_employee_attendance import get_employee_attendance, get_employee_overtime_attendance
+from hrms.controllers.mk_prepare_to_run_payroll import prepare_payroll_data, validate_days_having_only_one_checkin
 
-from maika.controllers.prepare_to_run_payroll import prepare_payroll_data
-from maika.maika.doctype.mk_employee_checkin.mk_employee_checkin import validate_days_having_only_one_checkin
 from pypika import Criterion
 
 frappe.utils.logger.set_log_level("INFO")
