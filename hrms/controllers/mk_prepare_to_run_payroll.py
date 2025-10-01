@@ -3,7 +3,7 @@ from frappe import _
 from datetime import datetime, timedelta
 from frappe.utils import now
 
-from nl_generate_overtime_timesheets import generate_overtime_timesheets
+from hrms.controllers.nl_generate_overtime_timesheets import generate_overtime_timesheets
 
 from pypika import Criterion
 
