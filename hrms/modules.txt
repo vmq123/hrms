@@ -1,4 +1,2 @@
 HR
 Payroll
-mk
-nl_attendance

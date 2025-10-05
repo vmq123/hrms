@@ -1462,7 +1462,7 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 					1 / len(employees),
 					title=_("Preparing payroll data..."),
 				)
-		prepare_payroll_data(args.start_date,args.end_date,track_job = None)
+		prepare_payroll_data(args.start_date,args.end_date)
 
 		SETTINGS_DOCTYPE = 'Navari Custom Payroll Settings'
 		maximum_monthly_hours = frappe.db.get_single_value(SETTINGS_DOCTYPE, 'maximum_monthly_hours')

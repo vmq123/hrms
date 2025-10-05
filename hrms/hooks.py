@@ -199,8 +199,7 @@ doc_events = {
 	"Employee": {
 		"validate": "hrms.overrides.employee_master.validate_onboarding_process",
 		"on_update": [
-			"hrms.overrides.employee_master.update_approver_role",
-			"hrms.overrides.employee_master.publish_update",
+            "hrms.overrides.employee_master.on_update_hook",
 		],
         "before_insert": "hrms.overrides.employee_master.before_insert_hook",
 		"after_insert": "hrms.overrides.employee_master.after_insert_hook",

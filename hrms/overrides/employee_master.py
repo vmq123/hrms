@@ -58,6 +58,30 @@ def before_insert_hook(doc, method=None):
 def after_insert_hook(doc, method=None):
 	update_job_applicant_and_offer(doc, method)
 	create_user(doc.name,user=None, email = doc.personal_email)
+	create_sales_person(doc)
+
+def on_update_hook(doc, method=None):
+	update_approver_role(doc, method=None)
+	publish_update(doc, method=None)
+	update_role_profile(doc)
+	create_sales_person(doc)
+
+def update_role_profile(doc):
+	user = frappe.get_doc("User",doc.user_id)
+	if(user.role_profile_name != doc.custom_role_profile):
+		user.role_profile_name = doc.custom_role_profile
+		user.save(ignore_permissions=True)
+
+def create_sales_person(employee):
+	if employee.custom_has_commission_from_sales:
+		if frappe.db.exists("Sales Person", {"sales_person_name": employee.first_name}):
+			return
+		sp = frappe.new_doc("Sales Person")
+		sp.sales_person_name = employee.first_name
+		sp.parent_sales_person = 'Sales Team'
+		sp.employee = employee.name
+		sp.commission_rate = 10
+		sp.insert(ignore_permissions=True)
 
 def create_user(employee, user=None, email=None):
 	emp = frappe.get_doc("Employee", employee)
@@ -90,15 +114,15 @@ def create_user(employee, user=None, email=None):
 			"last_name": last_name,
 			"gender": emp.gender,
 			"birth_date": emp.date_of_birth,
-			"phone": emp.cell_number,
-			"bio": emp.bio,
-			"role_profile_name": "MK Employee",
+			"mobile_no": emp.cell_number,
+			# "bio": emp.bio,
+			"role_profile_name": emp.custom_role_profile,
 			"module_profile": "MK"
 		}
 	)
-	user.insert()
+	user.insert(ignore_permissions=True)
 	emp.user_id = user.name
-	emp.save()
+	emp.save(ignore_permissions=True)
 	return user.name
 
 def update_job_applicant_and_offer(doc, method=None):
