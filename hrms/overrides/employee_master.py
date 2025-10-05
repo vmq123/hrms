@@ -8,10 +8,6 @@ from frappe.utils import add_years, cint, get_link_to_form, getdate
 
 from erpnext.setup.doctype.employee.employee import Employee
 
-frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
-logger = frappe.logger("mk_logger")
-
-
 class EmployeeMaster(Employee):
 	def autoname(self):
 		naming_method = frappe.db.get_value("HR Settings", None, "emp_created_by")
@@ -84,6 +80,8 @@ def update_role_profile(doc):
 		
 
 def update_user_permission(action , args):
+	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
+	logger = frappe.logger("mk_logger")
 	try:
 		args = frappe._dict(args)
 		if action == "Insert":
