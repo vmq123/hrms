@@ -8,7 +8,8 @@ from frappe.utils import add_years, cint, get_link_to_form, getdate
 
 from erpnext.setup.doctype.employee.employee import Employee
 
-
+frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
+logger = frappe.logger("mk_logger")
 
 
 class EmployeeMaster(Employee):
@@ -71,6 +72,36 @@ def update_role_profile(doc):
 	if(user.role_profile_name != doc.custom_role_profile):
 		user.role_profile_name = doc.custom_role_profile
 		user.save(ignore_permissions=True)
+		args = {
+			"user": doc.user_id,
+			"allow": "Employee",
+			"for_value": doc.name
+		}
+		if doc.custom_role_profile == 'MK Employee':
+			update_user_permission("Insert", args)
+		else:
+			update_user_permission("Delete", args)
+		
+
+def update_user_permission(action , args):
+	try:
+		args = frappe._dict(args)
+		if action == "Insert":
+			logger.info(f"update_user_permission, prepare step 1 to Insert {args}")
+			if not frappe.db.exists("User Permission",args):
+				logger.debug(f"update_user_permission, prepare step 2 to Insert...")
+				doc = frappe.new_doc("User Permission")
+				doc.update(args)
+				doc.insert(ignore_permissions=True)
+				logger.info(f"update_user_permission, done step 3 to Insert")
+		if action == "Delete":
+			logger.info(f"update_user_permission, prepare step 1 to Delete {args}")
+			if frappe.db.exists("User Permission", args):
+				logger.debug(f"update_user_permission, prepare step 2 to Delete...")
+				frappe.db.delete("User Permission",args)
+				logger.info(f"update_user_permission, done step 3 to Delete")
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), 'update_user_permission failed')
 
 def create_sales_person(employee):
 	if employee.custom_has_commission_from_sales:
