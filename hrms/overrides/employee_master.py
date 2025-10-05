@@ -55,6 +55,7 @@ def before_insert_hook(doc, method=None):
 def after_insert_hook(doc, method=None):
 	update_job_applicant_and_offer(doc, method)
 	create_user(doc.name,user=None, email = doc.personal_email)
+	update_role_profile(doc)
 	create_sales_person(doc)
 
 def on_update_hook(doc, method=None):
@@ -65,7 +66,7 @@ def on_update_hook(doc, method=None):
 
 def update_role_profile(doc):
 	user = frappe.get_doc("User",doc.user_id)
-	if(user.role_profile_name != doc.custom_role_profile):
+	if(not user.role_profile_name or user.role_profile_name != doc.custom_role_profile):
 		user.role_profile_name = doc.custom_role_profile
 		user.save(ignore_permissions=True)
 		args = {
@@ -82,7 +83,7 @@ def update_role_profile(doc):
 def update_user_permission(action , args):
 	logger = frappe.logger("mk_logger")
 	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
-	
+
 	try:
 		args = frappe._dict(args)
 		if action == "Insert":
@@ -146,7 +147,7 @@ def create_user(employee, user=None, email=None):
 			"birth_date": emp.date_of_birth,
 			"mobile_no": emp.cell_number,
 			# "bio": emp.bio,
-			"role_profile_name": emp.custom_role_profile,
+			# "role_profile_name": emp.custom_role_profile,
 			"module_profile": "MK"
 		}
 	)
