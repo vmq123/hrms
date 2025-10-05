@@ -55,7 +55,8 @@ def before_insert_hook(doc, method=None):
 def after_insert_hook(doc, method=None):
 	update_job_applicant_and_offer(doc, method)
 	create_user(doc.name,user=None, email = doc.personal_email)
-	update_role_profile(doc)
+	update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
+	update_user_permission("Insert", doc.personal_email, "Company", frappe.defaults.get_global_default("company"))
 	create_sales_person(doc)
 
 def on_update_hook(doc, method=None):
@@ -66,26 +67,26 @@ def on_update_hook(doc, method=None):
 
 def update_role_profile(doc):
 	user = frappe.get_doc("User",doc.user_id)
-	if(not user.role_profile_name or user.role_profile_name != doc.custom_role_profile):
+	if(user.role_profile_name != doc.custom_role_profile):
 		user.role_profile_name = doc.custom_role_profile
 		user.save(ignore_permissions=True)
-		args = {
-			"user": doc.user_id,
-			"allow": "Employee",
-			"for_value": doc.name
-		}
+
 		if doc.custom_role_profile == 'MK Employee':
-			update_user_permission("Insert", args)
+			update_user_permission("Insert", doc.user_id, "Employee", doc.name)
 		else:
-			update_user_permission("Delete", args)
+			update_user_permission("Delete", doc.user_id, "Employee", doc.name)
 		
 
-def update_user_permission(action , args):
+def update_user_permission(action , user_id, allow, for_value):
 	logger = frappe.logger("mk_logger")
 	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
-
+	args = {
+		"user": user_id,
+		"allow": allow,
+		"for_value": for_value
+	}
 	try:
-		args = frappe._dict(args)
+		# args = frappe._dict(args)
 		if action == "Insert":
 			logger.info(f"update_user_permission, prepare step 1 to Insert {args}")
 			if not frappe.db.exists("User Permission",args):
@@ -147,7 +148,7 @@ def create_user(employee, user=None, email=None):
 			"birth_date": emp.date_of_birth,
 			"mobile_no": emp.cell_number,
 			# "bio": emp.bio,
-			# "role_profile_name": emp.custom_role_profile,
+			"role_profile_name": emp.custom_role_profile,
 			"module_profile": "MK"
 		}
 	)
