@@ -80,8 +80,9 @@ def update_role_profile(doc):
 		
 
 def update_user_permission(action , args):
-	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
 	logger = frappe.logger("mk_logger")
+	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
+	
 	try:
 		args = frappe._dict(args)
 		if action == "Insert":
