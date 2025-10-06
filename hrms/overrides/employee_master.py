@@ -52,18 +52,50 @@ def publish_update(doc, method=None):
 def before_insert_hook(doc, method=None):
 	doc.user_id = None
 
+def before_validate_hook(doc, method=None):
+	update_status_for_user_and_sales_person(doc)
+
 def after_insert_hook(doc, method=None):
 	update_job_applicant_and_offer(doc, method)
 	create_user(doc.name,user=None, email = doc.personal_email)
 	update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
 	update_user_permission("Insert", doc.personal_email, "Company", frappe.defaults.get_global_default("company"))
-	create_sales_person(doc)
+	create_sales_person_if_having_commission(doc)
 
 def on_update_hook(doc, method=None):
 	update_approver_role(doc, method=None)
 	publish_update(doc, method=None)
 	update_role_profile(doc)
-	create_sales_person(doc)
+	create_sales_person_if_having_commission(doc)
+
+def update_status_for_user_and_sales_person(doc):
+	# user = frappe.get_doc("User",doc.user_id)
+	# sp = frappe.get_doc("Sales Person",doc.name)
+	if doc.status == 'Active':
+		# user.update({"enabled":1})
+		# sp.update({"enabled":1})
+		if frappe.db.exists("User",doc.user_id):
+			user = frappe.get_doc("User",doc.user_id)
+			user.update({"enabled":1})
+			user.save(ignore_permissions=True)
+		# frappe.db.set_value("User",doc.user_id,"status","Active")
+		# frappe.db.set_value("User",doc.user_id,"enabled",1)
+		if frappe.db.exists("Sales Person",doc.name):
+			frappe.db.set_value("Sales Person",doc.name,"enabled",1)
+	else:
+		# frappe.db.set_value("User",doc.user_id,"enabled",0)
+		if frappe.db.exists("User",doc.user_id):
+			user = frappe.get_doc("User",doc.user_id)
+			user.update({"enabled":0})
+			user.save(ignore_permissions=True)
+		if frappe.db.exists("Sales Person",doc.name):
+			frappe.db.set_value("Sales Person",doc.name,"enabled",0)
+		# user.update({"enabled":0})
+		# sp.update({"enabled":0})
+	# user.save(ignore_permissions=True)
+	# sp.save(ignore_permissions=True)
+	frappe.db.commit() 
+
 
 def update_role_profile(doc):
 	user = frappe.get_doc("User",doc.user_id)
@@ -104,7 +136,7 @@ def update_user_permission(action , user_id, allow, for_value):
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), 'update_user_permission failed')
 
-def create_sales_person(employee):
+def create_sales_person_if_having_commission(employee):
 	if employee.custom_has_commission_from_sales:
 		if frappe.db.exists("Sales Person", {"sales_person_name": employee.first_name}):
 			return
