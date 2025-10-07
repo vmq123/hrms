@@ -50,6 +50,7 @@ def get_dashboard_for_employee(data):
 					"Employee Incentive",
 					# "Additional Salary",
 					"Timesheet",
+					"Sales Person",
 					# "Retention Bonus",
 					# "Bank Account",
 				],
