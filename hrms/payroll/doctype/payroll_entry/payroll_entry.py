@@ -1457,11 +1457,11 @@ def log_payroll_failure(process, payroll_entry, error):
 def create_salary_slips_for_employees(employees, args, publish_progress=True):
 
 	try:
-		if publish_progress:
-				frappe.publish_progress(
-					1 / len(employees),
-					title=_("Preparing payroll data..."),
-				)
+		# if publish_progress:
+		# 	frappe.publish_progress(
+		# 		1 / len(employees),
+		# 		title=_("Preparing payroll data..."),
+		# 	)
 		prepare_payroll_data(args.start_date,args.end_date)
 
 		SETTINGS_DOCTYPE = 'Navari Custom Payroll Settings'
@@ -1788,6 +1788,7 @@ def add_attendance_data_to_salary_slip(salary_slip,overtime_15,overtime_20):
 			salary_slip.regular_working_hours += balance_to_maximum_monthly_hours
 
 def add_incentive_data_to_salary_slip(salary_slip):
+	logger.info(f"add_incentive_data_to_salary_slip: salary_slip: {salary_slip}")
 	start_date, end_date=salary_slip.start_date, salary_slip.end_date
 
 	sales_team = frappe.qb.DocType("Sales Team")
@@ -1826,4 +1827,5 @@ def add_incentive_data_to_salary_slip(salary_slip):
 			'incentives': entry.get('incentives')
 		})
 		incentives_total += entry.incentives
+	logger.info(f"add_incentive_data_to_salary_slip: incentives_total: {incentives_total}")
 	salary_slip.incentives_total = incentives_total
