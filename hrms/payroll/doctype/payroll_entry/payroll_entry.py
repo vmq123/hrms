@@ -32,7 +32,7 @@ from hrms.payroll.doctype.salary_slip.salary_slip_loan_utils import if_lending_a
 from hrms.payroll.doctype.salary_withholding.salary_withholding import link_bank_entry_in_salary_withholdings
 
 from hrms.controllers.nl_get_employee_attendance import get_employee_attendance, get_employee_overtime_attendance
-from hrms.controllers.mk_prepare_to_run_payroll import prepare_payroll_data, validate_days_having_only_one_checkin
+from hrms.controllers.mk_prepare_to_run_payroll_for_an_employee import prepare_payroll_data_for_employee, validate_days_having_only_one_checkin
 
 from pypika import Criterion
 
@@ -1462,7 +1462,7 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 		# 		1 / len(employees),
 		# 		title=_("Preparing payroll data..."),
 		# 	)
-		prepare_payroll_data(args.start_date,args.end_date)
+		
 
 		SETTINGS_DOCTYPE = 'Navari Custom Payroll Settings'
 		maximum_monthly_hours = frappe.db.get_single_value(SETTINGS_DOCTYPE, 'maximum_monthly_hours')
@@ -1480,10 +1480,12 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 		# add_data_for_payroll(payroll_entry, employees)
 		
 		for emp in employees:
+			prepare_payroll_data_for_employee(emp,args.start_date,args.end_date)
+
 			args.update({"doctype": "Salary Slip", "employee": emp})
 			doc = frappe.get_doc(args)
 			doc.validate()
-			# logger.info(f"payment days 1: {doc.payment_days}")
+			
 			add_attendance_data_to_salary_slip(doc,overtime_15,overtime_20)
 			add_incentive_data_to_salary_slip(doc)
 			doc.insert()
@@ -1712,6 +1714,7 @@ def get_salary_withholdings(
 # this is MK Payroll added
 # TODO: get real duration from shift_type instead of 8
 def add_attendance_data_to_salary_slip(salary_slip,overtime_15,overtime_20):
+	logger.info(f"payroll_entry.add_attendance_data_to_salary_slip.start")
 	# salary_slip = salary_slip_doc
 	maximum_monthly_hours = salary_slip.payment_days * 8
 	logger.info(f"maximum_monthly_hours: {maximum_monthly_hours}")
@@ -1788,7 +1791,7 @@ def add_attendance_data_to_salary_slip(salary_slip,overtime_15,overtime_20):
 			salary_slip.regular_working_hours += balance_to_maximum_monthly_hours
 
 def add_incentive_data_to_salary_slip(salary_slip):
-	logger.info(f"add_incentive_data_to_salary_slip: salary_slip: {salary_slip}")
+	logger.info(f"payroll_entry.add_incentive_data_to_salary_slip.start: salary_slip.employee,start_date,end_date: {salary_slip.employee} {salary_slip.start_date} {salary_slip.end_date}")
 	start_date, end_date=salary_slip.start_date, salary_slip.end_date
 
 	sales_team = frappe.qb.DocType("Sales Team")
@@ -1805,7 +1808,7 @@ def add_incentive_data_to_salary_slip(salary_slip):
 		.left_join(sales_order) \
 		.on(sales_team.parent == sales_order.name) \
 		.left_join(sales_person) \
-		.on(sales_team.sales_person == sales_person.sales_person_name) \
+		.on(sales_team.sales_person == sales_person.name) \
 		.select(
 		sales_team.parent.as_("parent"),
 		sales_team.allocated_percentage.as_("allocated_percentage"),

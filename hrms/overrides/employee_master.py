@@ -61,9 +61,9 @@ def after_insert_hook(doc, method=None):
 	# update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
 	update_user_permission("Insert", doc.personal_email, "Company", frappe.defaults.get_global_default("company"))
 	if doc.custom_role_profile == 'MK Employee':
-		update_user_permission("Insert", doc.user_id, "Employee", doc.name)
+		update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
 	else:
-		update_user_permission("Delete", doc.user_id, "Employee", doc.name)
+		update_user_permission("Delete", doc.personal_email, "Employee", doc.name)
 	
 	create_sales_person_if_having_commission(doc)
 
