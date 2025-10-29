@@ -60,7 +60,7 @@ def after_insert_hook(doc, method=None):
 	create_user(doc.name,user=None, email = doc.personal_email)
 	# update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
 	update_user_permission("Insert", doc.personal_email, "Company", frappe.defaults.get_global_default("company"))
-	if doc.custom_role_profile == 'MK Employee':
+	if doc.custom_role_profile == 'HRPlus Employee':
 		update_user_permission("Insert", doc.personal_email, "Employee", doc.name)
 	else:
 		update_user_permission("Delete", doc.personal_email, "Employee", doc.name)
@@ -108,7 +108,7 @@ def update_role_profile(doc):
 		user.role_profile_name = doc.custom_role_profile
 		user.save(ignore_permissions=True)
 
-		if doc.custom_role_profile == 'MK Employee':
+		if doc.custom_role_profile == 'HRPlus Employee':
 			update_user_permission("Insert", doc.user_id, "Employee", doc.name)
 		else:
 			update_user_permission("Delete", doc.user_id, "Employee", doc.name)
@@ -116,7 +116,7 @@ def update_role_profile(doc):
 
 def update_user_permission(action , user_id, allow, for_value):
 	logger = frappe.logger("mk_logger")
-	frappe.utils.logger.set_log_level(frappe.db.get_single_value("MK Company Config", 'log_level'))
+	frappe.utils.logger.set_log_level("INFO")
 	args = {
 		"user": user_id,
 		"allow": allow,
