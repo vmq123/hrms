@@ -186,7 +186,7 @@ def create_user(employee, user=None, email=None):
 			"mobile_no": emp.cell_number,
 			# "bio": emp.bio,
 			"role_profile_name": emp.custom_role_profile,
-			"module_profile": "MK"
+			"module_profile": emp.custom_role_profile
 		}
 	)
 	user.insert(ignore_permissions=True)
