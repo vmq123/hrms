@@ -43,7 +43,7 @@ def publish_from_mk_employee_checkin(employee_dn, start_date,end_date):
     process_attendance_after = start_date
     last_sync_of_checkin = end_date + " 23:59:00"
     logs = frappe.get_all(
-        "MK Employee Checkin",
+        "HRPlus Employee Checkin",
         fields=[
             "name",
             "employee",
@@ -103,7 +103,7 @@ def get_days_having_only_one_checkin(start_timestamp, end_timestamp):
 	values = {'start_ts': start_timestamp, 'end_ts': end_timestamp}
 	data = frappe.db.sql("""
 		select b.employee, b.checkin_date, count(b.time) count_checkin_logs from (
-			select CAST(time AS DATE) AS checkin_date, employee, time from `tabMK Employee Checkin` a
+			select CAST(time AS DATE) AS checkin_date, employee, time from `tabHRPlus Employee Checkin` a
 			where time between %(start_ts)s and %(end_ts)s
 		) b
 		group by b.employee, b.checkin_date
