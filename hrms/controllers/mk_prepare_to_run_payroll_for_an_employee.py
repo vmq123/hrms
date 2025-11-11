@@ -27,7 +27,7 @@ def prepare_payroll_data_for_employee(employee_dn, start_date,end_date):
     doc.insert(ignore_permissions=True)
     
     process_attendance_after = start_date
-    last_sync_of_checkin = end_date + " 23:59:00"
+    last_sync_of_checkin = f"{end_date} 23:59:00"
 
     publish_from_mk_employee_checkin(employee_dn, start_date,end_date)
     process_attendance(employee_dn, process_attendance_after,last_sync_of_checkin)
@@ -41,7 +41,7 @@ def prepare_payroll_data_for_employee(employee_dn, start_date,end_date):
 def publish_from_mk_employee_checkin(employee_dn, start_date,end_date):
 
     process_attendance_after = start_date
-    last_sync_of_checkin = end_date + " 23:59:00"
+    last_sync_of_checkin = f"{end_date} 23:59:00"
     logs = frappe.get_all(
         "HRPlus Employee Checkin",
         fields=[

@@ -1915,13 +1915,18 @@ class SalarySlip(TransactionBase):
 
 	def get_component_totals(self, component_type, depends_on_payment_days=0):
 		total = 0.0
+		# logger.info(f"salary_slip.py get_component_totals: component_type={component_type}")
 		for d in self.get(component_type):
-			if not d.do_not_include_in_total:
+			dni = frappe.get_cached_doc("Salary Component",d.salary_component).do_not_include_in_total
+			# logger.info(f"salary_slip.py get_component_totals: d.salary_component={d.salary_component} do_not_include_in_total={d.do_not_include_in_total}")
+			# logger.info(f"salary_slip.py get_component_totals: d.salary_component={d.salary_component} dni={dni}")
+			if not dni:
 				if depends_on_payment_days:
 					amount = self.get_amount_based_on_payment_days(d)[0]
 				else:
 					amount = flt(d.amount, d.precision("amount"))
 				total += amount
+		logger.info(f"salary_slip.py get_component_totals done: component_type={component_type} total={total}")
 		return total
 
 	def email_salary_slip(self):
