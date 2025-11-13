@@ -174,7 +174,7 @@ def create_user(employee, user=None, email=None):
 		{
 			"name": emp.employee_name,
 			"full_name": emp.employee_name,
-			"email": emp.prefered_email,
+			"email": emp.personal_email,
 			"username": email,
 			"enabled": 1,
 			"send_welcome_email": 0,
